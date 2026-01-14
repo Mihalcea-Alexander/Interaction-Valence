@@ -1,0 +1,1055 @@
+\
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Interaction Valence Tracker (Offline)</title>
+  
+  <style>
+    :root{
+      --bg0:#060814;
+      --bg1:#0A0F22;
+      --cardTop: rgba(255,255,255,.08);
+      --cardBot: rgba(255,255,255,.05);
+      --stroke: rgba(255,255,255,.10);
+      --stroke2: rgba(255,255,255,.14);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.62);
+      --good:#45f7b5;
+      --mid:#b9c2ff;
+      --bad:#ff5a8a;
+      --shadow: 0 18px 60px rgba(0,0,0,.40);
+      --radius: 18px;
+      --radius2: 14px;
+    }
+
+    *{box-sizing:border-box}
+    html,body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1000px 700px at 15% 10%, rgba(120,128,255,.18), transparent 60%),
+        radial-gradient(900px 650px at 85% 20%, rgba(69,247,181,.12), transparent 62%),
+        radial-gradient(1200px 800px at 55% 92%, rgba(255,90,138,.10), transparent 66%),
+        linear-gradient(180deg, #050713 0%, #070A18 40%, #0A0F22 100%);
+      -webkit-font-smoothing: antialiased;
+      overflow-x:hidden;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .wrap{
+      max-width: 980px;
+      margin: 0 auto;
+      padding: calc(18px + env(safe-area-inset-top)) 14px 26px;
+    }
+
+    header{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:12px;
+    }
+
+    .title h1{
+      margin:0;
+      font-size:19px;
+      font-weight:780;
+      letter-spacing:.2px;
+    }
+    .title .sub{
+      margin:7px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.35;
+      max-width: 44ch;
+    }
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.045));
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      overflow:hidden;
+    }
+
+    .hd{
+      padding:12px 12px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+    }
+    .hd h2{
+      margin:0;
+      font-size:12px;
+      font-weight:780;
+      color:rgba(255,255,255,.86);
+      letter-spacing:.28px;
+      text-transform:uppercase;
+    }
+
+    .bd{padding:12px}
+
+    .grid{display:grid; grid-template-columns: 1fr; gap:12px;}
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .row > *{flex:0 0 auto}
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.92);
+      padding:10px 12px;
+      border-radius: var(--radius2);
+      font-weight:780;
+      cursor:pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform .06s ease, background .12s ease, border-color .12s ease;
+    }
+    .btn:hover{background: rgba(255,255,255,.085)}
+    .btn:active{transform: translateY(1px)}
+    .btn.good{border-color: rgba(69,247,181,.36); background: rgba(69,247,181,.11)}
+    .btn.mid{border-color: rgba(185,194,255,.36); background: rgba(185,194,255,.11)}
+    .btn.bad{border-color: rgba(255,90,138,.36); background: rgba(255,90,138,.11)}
+    .btn.ghost{background: transparent}
+    .btn.danger{border-color: rgba(255,90,138,.36)}
+
+    .seg{
+      display:inline-flex;
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      overflow:hidden;
+      background: rgba(255,255,255,.05);
+    }
+    .seg button{
+      border:0;
+      background:transparent;
+      color:rgba(255,255,255,.72);
+      padding:8px 11px;
+      font-weight:780;
+      font-size:12px;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .seg button.on{
+      color:rgba(255,255,255,.94);
+      background: rgba(255,255,255,.10);
+    }
+
+    .field{display:flex; flex-direction:column; gap:6px; flex:1; min-width: 0;}
+    label{font-size:12px; color:var(--muted);}
+
+    input[type="text"]{
+      width:100%;
+      border:1px solid rgba(255,255,255,.11);
+      border-radius: var(--radius2);
+      background: rgba(10,14,28,.62);
+      color: rgba(255,255,255,.92);
+      padding:10px 12px;
+      outline:none;
+    }
+    input[type="text"]:focus{
+      border-color: rgba(185,194,255,.35);
+      box-shadow: 0 0 0 3px rgba(185,194,255,.10);
+    }
+
+    .kpis{display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-top:10px;}
+    .kpi{
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius2);
+      background: rgba(255,255,255,.04);
+      padding:10px 10px;
+      min-width:0;
+    }
+    .kpi .n{margin:0; font-size:18px; font-weight:860; letter-spacing:.2px;}
+    .kpi .t{margin:4px 0 0; font-size:11px; color:var(--muted); line-height:1.2;}
+
+    .hint{
+      margin-top:10px;
+      border:1px dashed rgba(255,255,255,.16);
+      border-radius: var(--radius2);
+      padding:10px 12px;
+      color: var(--muted);
+      font-size:12px;
+      background: rgba(255,255,255,.03);
+      line-height:1.35;
+    }
+
+    .list{display:flex; flex-direction:column; gap:10px; max-height: 340px; overflow:auto;}
+    .item{
+      border:1px solid rgba(255,255,255,.09);
+      border-radius: var(--radius2);
+      background: rgba(255,255,255,.04);
+      padding:10px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .meta{min-width:0}
+    .meta .top{display:flex; gap:8px; flex-wrap:wrap; align-items:center; font-size:12px;}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 8px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      font-size:12px;
+      color: rgba(255,255,255,.88);
+      white-space:nowrap;
+    }
+    .badge.good{border-color: rgba(69,247,181,.35); background: rgba(69,247,181,.10)}
+    .badge.mid{border-color: rgba(185,194,255,.35); background: rgba(185,194,255,.10)}
+    .badge.bad{border-color: rgba(255,90,138,.35); background: rgba(255,90,138,.10)}
+    .note{
+      margin-top:6px;
+      color: rgba(255,255,255,.78);
+      font-size:12px;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+    }
+
+    input[type="file"]{display:none}
+
+    .canvasWrap{
+      position:relative;
+      height: 340px;
+      width: 100%;
+      border-radius: var(--radius2);
+      overflow:hidden;
+      background: rgba(0,0,0,.10);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+
+    canvas{width:100%; height:100%; display:block;}
+
+    .tooltip{
+      position:absolute;
+      pointer-events:none;
+      transform: translate(-50%, calc(-100% - 10px));
+      background: rgba(10,14,28,.92);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: 0 14px 40px rgba(0,0,0,.45);
+      border-radius: 12px;
+      padding:8px 10px;
+      font-size:12px;
+      color: rgba(255,255,255,.9);
+      line-height:1.25;
+      max-width: 240px;
+      opacity:0;
+      transition: opacity .10s ease;
+      backdrop-filter: blur(12px);
+    }
+    .tooltip.on{opacity:1;}
+
+    .hr{height:1px; background: rgba(255,255,255,.08); margin:12px 0}
+
+    .tiny{font-size:11px; color:var(--muted)}
+  </style>
+
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0B1020">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Valence">
+
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Interaction Valence Tracker</h1>
+        <div class="sub">Offline-first iPhone web app. Chart encodes <b>quality</b> (y-axis) and <b>quantity</b> (bubble size) over time.</div>
+      </div>
+      </header>
+
+    
+    <div class="card" style="margin-bottom:12px">
+      <div class="bd" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap">
+        <div class="tiny" style="color: rgba(255,255,255,.75)">
+          Window & aggregation
+        </div>
+        <div class="row" style="justify-content:flex-end; margin:0; flex:0 0 auto">
+          <div class="seg" aria-label="window">
+            <button id="w7" class="on" type="button">7d</button>
+            <button id="w30" type="button">30d</button>
+            <button id="wall" type="button">All</button>
+          </div>
+          <div class="seg" aria-label="bucket">
+            <button id="bd" class="on" type="button">Daily</button>
+            <button id="bw" type="button">Weekly</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+<section class="card">
+        <div class="hd"><h2>Quick log</h2><div class="tiny">Tap to record</div></div>
+        <div class="bd">
+          <div class="row">
+            <div class="field" style="flex:1.2">
+              <label for="label">Label (optional)</label>
+              <input id="label" type="text" placeholder="e.g., roommate, study group, email" />
+            </div>
+            <div class="field" style="flex:1.8">
+              <label for="note">Note (optional)</label>
+              <input id="note" type="text" placeholder="short context" />
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+
+          <div class="tiny" style="margin-top:8px">Logs save instantly (on-device). Use the window/aggregation controls above.</div>
+
+          <div class="row" style="margin-top:10px">
+            <button class="btn bad" id="btnNeg" type="button">Negative</button>
+            <button class="btn mid" id="btnNeu" type="button">Neutral</button>
+            <button class="btn good" id="btnPos" type="button">Positive</button>
+          </div>
+        </div>
+      </section>
+<section class="card">
+        <div class="hd"><h2>Quantity × Quality</h2></div>
+        </div>
+        <div class="bd">
+          <div class="canvasWrap">
+            <canvas id="plot" width="900" height="520"></canvas>
+            <div class="tooltip" id="tip"></div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="row" style="justify-content:space-between; align-items:center">
+            <div class="tiny" id="status">Stored locally on this device</div>
+            <div class="row" style="flex:0 0 auto; margin:0; justify-content:flex-end">
+              <button class="btn ghost" id="btnExportPlot" type="button">Export plot PNG</button>
+              <button class="btn ghost" id="btnExport" type="button">Export JSON</button>
+              <label class="btn ghost" for="fileIn" style="margin:0; cursor:pointer">Import</label>
+              <input id="fileIn" type="file" accept="application/json" />
+            </div>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi">
+              <p class="n" id="kTotal">0</p>
+              <p class="t">Total interactions</p>
+            </div>
+            <div class="kpi">
+              <p class="n" id="kAvg">0.00</p>
+              <p class="t">Avg quality (−1..1)</p>
+            </div>
+            <div class="kpi">
+              <p class="n" id="kRate">0%</p>
+              <p class="t">Positive rate</p>
+            </div>
+          </div>
+
+          <div class="hint">
+            <b>How to read this:</b> each bubble = one day/week bucket. Bubble <b>height</b> = average interaction quality (−1 negative … +1 positive).
+            Bubble <b>size</b> = number of interactions in that bucket. Bubble <b>color</b> follows quality (pink → blue → mint).
+            Tap/drag on bubbles for details.
+          </div>
+        </div>
+      </section>
+
+      
+
+      
+    
+
+
+      <section class="card" id="entriesCard">
+        <div class="hd">
+          <h2>Entries</h2>
+          <div class="tiny"><span id="entryCount">0</span> total</div>
+        </div>
+        <div class="bd">
+          <details id="entriesDetails">
+            <summary class="btn ghost" style="width:100%; text-align:left; display:flex; justify-content:space-between; align-items:center">
+              <span>Show / hide entries</span>
+              <span class="tiny" id="entriesSummaryHint">Collapsed</span>
+            </summary>
+
+            <div style="height:10px"></div>
+
+            <div class="row" style="justify-content:space-between; align-items:center">
+              <div class="tiny">Manage entries</div>
+              <button class="btn danger" id="btnClear" type="button">Clear all</button>
+            </div>
+
+            <div style="height:10px"></div>
+            <div class="list" id="list"></div>
+          </details>
+        </div>
+      </section>
+
+</div>
+  </div>
+
+<script>
+(() => {
+  // ----------------------------
+  // Storage + data model
+  // ----------------------------
+  const STORAGE_KEY = "valence_tracker_entries_v2_offline";
+  /** @typedef {{timestamp:string, valence:-1|0|1, label?:string, note?:string}} Entry */
+  /** @type {Entry[]} */
+  let entries = load();
+
+  // Chart state
+  let windowMode = "7d";  // "7d" | "30d" | "all"
+  let bucketMode = "daily"; // "daily" | "weekly"
+
+  // Elements
+  const el = (id) => document.getElementById(id);
+  const plot = el("plot");
+  const ctx = plot.getContext("2d");
+  const tip = el("tip");
+
+  const labelIn = el("label");
+  const noteIn  = el("note");
+  const listEl  = el("list");
+  const entryCountEl = el("entryCount");
+
+  const kTotal = el("kTotal");
+  const kAvg   = el("kAvg");
+  const kRate  = el("kRate");
+
+  const fileIn = el("fileIn");
+
+  // Buttons
+  el("btnNeg").addEventListener("click", () => add(-1));
+  el("btnNeu").addEventListener("click", () => add(0));
+  el("btnPos").addEventListener("click", () => add(1));
+
+  el("btnExport").addEventListener("click", exportJson);
+  el("btnClear").addEventListener("click", clearAll);
+  fileIn.addEventListener("change", importJson);
+
+  // Window + bucket seg controls
+  const setWindow = (mode) => {
+    windowMode = mode;
+    el("w7").classList.toggle("on", mode === "7d");
+    el("w30").classList.toggle("on", mode === "30d");
+    el("wall").classList.toggle("on", mode === "all");
+    render();
+  };
+  el("w7").addEventListener("click", () => setWindow("7d"));
+  el("w30").addEventListener("click", () => setWindow("30d"));
+  el("wall").addEventListener("click", () => setWindow("all"));
+
+  const setBucket = (mode) => {
+    bucketMode = mode;
+    el("bd").classList.toggle("on", mode === "daily");
+    el("bw").classList.toggle("on", mode === "weekly");
+    render();
+  };
+  el("bd").addEventListener("click", () => setBucket("daily"));
+  el("bw").addEventListener("click", () => setBucket("weekly"));
+
+  // ----------------------------
+  // Helpers
+  // ----------------------------
+  const nowISO = () => new Date().toISOString();
+
+  function startOfDayLocal(d){
+    const x = new Date(d);
+    x.setHours(0,0,0,0);
+    return x;
+  }
+
+  function startOfWeekLocal(d){
+    // Monday-start week (ISO-ish). Adjust if you want Sunday-start.
+    const x = startOfDayLocal(d);
+    const day = x.getDay(); // 0 Sun .. 6 Sat
+    const diff = (day === 0 ? -6 : 1 - day); // shift back to Monday
+    x.setDate(x.getDate() + diff);
+    return x;
+  }
+
+  function fmtShort(d){
+    return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  }
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function colorForQuality(q){
+    // q in [-1, 1]
+    // -1 -> bad (pink), 0 -> mid (blue-ish), 1 -> good (mint)
+    const t = (q + 1) / 2;
+    const cBad = [255, 90, 138];
+    const cMid = [185, 194, 255];
+    const cGood= [69, 247, 181];
+
+    let c0, c1, tt;
+    if (t < 0.5){
+      c0 = cBad; c1 = cMid; tt = t / 0.5;
+    } else {
+      c0 = cMid; c1 = cGood; tt = (t-0.5) / 0.5;
+    }
+    const r = Math.round(lerp(c0[0], c1[0], tt));
+    const g = Math.round(lerp(c0[1], c1[1], tt));
+    const b = Math.round(lerp(c0[2], c1[2], tt));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function alpha(color, a){
+    // color like rgb(r,g,b)
+    const m = color.match(/rgb\((\d+),(\d+),(\d+)\)/);
+    if (!m) return color;
+    return `rgba(${m[1]},${m[2]},${m[3]},${a})`;
+  }
+
+  function withinWindow(tsISO){
+    const t = new Date(tsISO).getTime();
+    const now = Date.now();
+    if (windowMode === "7d")  return t >= now - 7*24*60*60*1000;
+    if (windowMode === "30d") return t >= now - 30*24*60*60*1000;
+    return true;
+  }
+
+  function bucketKey(d){
+    const base = (bucketMode === "weekly") ? startOfWeekLocal(d) : startOfDayLocal(d);
+    return base.toISOString();
+  }
+
+  function bucketLabel(iso){
+    const d = new Date(iso);
+    if (bucketMode === "weekly"){
+      const end = new Date(d);
+      end.setDate(end.getDate() + 6);
+      return `${fmtShort(d)}–${fmtShort(end)}`;
+    }
+    return fmtShort(d);
+  }
+
+  // ----------------------------
+  // Aggregate for plot
+  // ----------------------------
+  function aggregateForPlot(){
+    const filtered = entries.filter(e => withinWindow(e.timestamp));
+    const map = new Map(); // key -> {startISO, n, sum, pos, neu, neg}
+    for (const e of filtered){
+      const k = bucketKey(new Date(e.timestamp));
+      if (!map.has(k)) map.set(k, {startISO:k, n:0, sum:0, pos:0, neu:0, neg:0});
+      const b = map.get(k);
+      b.n += 1;
+      b.sum += e.valence;
+      if (e.valence === 1) b.pos++;
+      else if (e.valence === 0) b.neu++;
+      else b.neg++;
+    }
+    const buckets = [...map.values()].sort((a,b) => new Date(a.startISO) - new Date(b.startISO));
+    const points = buckets.map(b => ({
+      t: new Date(b.startISO).getTime(),
+      label: bucketLabel(b.startISO),
+      n: b.n,
+      q: b.n ? b.sum / b.n : 0,
+      pos: b.pos, neu: b.neu, neg: b.neg
+    }));
+    return points;
+  }
+
+  // ----------------------------
+  // Canvas plot (bubble: size=quantity, y=quality, x=time)
+  // ----------------------------
+  let hitBubbles = []; // for hit testing
+  let pointerDown = false;
+
+  function resizeCanvasToCSS(){
+    const rect = plot.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(320, Math.floor(rect.width));
+    const h = Math.max(260, Math.floor(rect.height));
+    plot.width  = Math.floor(w * dpr);
+    plot.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function draw(){
+    resizeCanvasToCSS();
+    const W = plot.getBoundingClientRect().width;
+    const H = plot.getBoundingClientRect().height;
+    renderPlotToContext(ctx, W, H);
+  }
+
+  function renderPlotToContext(pctx, W, H){
+
+    // Background
+    pctx.clearRect(0,0,W,H);
+
+    // Plot area
+    const padL = 46, padR = 16, padT = 14, padB = 42;
+    const x0 = padL, x1 = W - padR;
+    const y0 = padT, y1 = H - padB;
+
+    // Grid + axes
+    pctx.save();
+    pctx.lineWidth = 1;
+    pctx.strokeStyle = "rgba(255,255,255,0.08)";
+    pctx.fillStyle = "rgba(255,255,255,0.72)";
+    pctx.font = "12px ui-sans-serif, system-ui, -apple-system";
+
+    // horizontal grid at -1, 0, +1
+    const yForQ = (q) => lerp(y1, y0, (q + 1) / 2);
+    [-1, 0, 1].forEach((q) => {
+      const y = yForQ(q);
+      pctx.beginPath();
+      pctx.moveTo(x0, y);
+      pctx.lineTo(x1, y);
+      pctx.stroke();
+      pctx.fillStyle = "rgba(255,255,255,0.62)";
+      const lbl = q === 1 ? "Positive" : q === 0 ? "Neutral" : "Negative";
+      pctx.fillText(lbl, 8, y + 4);
+    });
+
+    // x-axis baseline
+    pctx.strokeStyle = "rgba(255,255,255,0.10)";
+    pctx.beginPath();
+    pctx.moveTo(x0, y1);
+    pctx.lineTo(x1, y1);
+    pctx.stroke();
+
+    // Data
+    const pts = aggregateForPlot();
+    hitBubbles = [];
+
+    if (!pts.length){
+      pctx.fillStyle = "rgba(255,255,255,0.65)";
+      pctx.font = "13px ui-sans-serif, system-ui, -apple-system";
+      pctx.fillText("No data in this window. Log something below.", x0, y0 + 18);
+      pctx.restore();
+      return;
+    }
+
+    const tMin = pts[0].t;
+    const tMax = pts[pts.length - 1].t;
+    const tSpan = Math.max(1, tMax - tMin);
+
+    const xForT = (t) => x0 + ( (t - tMin) / tSpan ) * (x1 - x0);
+
+    // bubble radius based on quantity (n)
+    const nMax = Math.max(...pts.map(p => p.n));
+    const rForN = (n) => {
+      // Size grows with interaction count (mostly absolute so it’s obvious), softly capped.
+      const abs = 8 + 10 * Math.sqrt(Math.max(0, n));   // n=1 -> 18px, n=4 -> 28px, n=9 -> 38px (capped)
+      const cappedAbs = Math.min(34, abs);
+
+      // Add a smaller relative component so differences are readable inside the selected window.
+      const relT = Math.sqrt(n / Math.max(1, nMax));
+      const rel = lerp(10, 30, relT);
+
+      return Math.round(0.65 * cappedAbs + 0.35 * rel);
+    };
+
+    // x ticks (up to 5)
+    const tickCount = Math.min(5, pts.length);
+    const tickIdxs = [];
+    for (let i=0;i<tickCount;i++){
+      tickIdxs.push(Math.round(lerp(0, pts.length-1, i/(tickCount-1 || 1))));
+    }
+    pctx.fillStyle = "rgba(255,255,255,0.62)";
+    pctx.font = "11px ui-sans-serif, system-ui, -apple-system";
+    for (const idx of [...new Set(tickIdxs)]){
+      const p = pts[idx];
+      const x = xForT(p.t);
+      pctx.strokeStyle = "rgba(255,255,255,0.06)";
+      pctx.beginPath();
+      pctx.moveTo(x, y0);
+      pctx.lineTo(x, y1);
+      pctx.stroke();
+
+      const txt = p.label;
+      const tw = pctx.measureText(txt).width;
+      pctx.fillText(txt, clamp(x - tw/2, x0, x1 - tw), y1 + 28);
+    }
+
+    // Connecting line for quality trend
+    pctx.strokeStyle = "rgba(185,194,255,0.45)";
+    pctx.lineWidth = 2;
+    pctx.beginPath();
+    pts.forEach((p, i) => {
+      const x = xForT(p.t);
+      const y = yForQ(p.q);
+      if (i === 0) pctx.moveTo(x,y);
+      else pctx.lineTo(x,y);
+    });
+    pctx.stroke();
+
+    // Bubbles
+    for (const p of pts){
+      const x = xForT(p.t);
+      const y = yForQ(p.q);
+      const r = rForN(p.n);
+      const c = colorForQuality(p.q);
+
+      // glow
+      pctx.beginPath();
+      pctx.fillStyle = alpha(c, 0.18);
+      pctx.arc(x, y, r + 7, 0, Math.PI*2);
+      pctx.fill();
+
+      // body
+      pctx.beginPath();
+      pctx.fillStyle = alpha(c, 0.86);
+      pctx.strokeStyle = "rgba(255,255,255,0.18)";
+      pctx.lineWidth = 1;
+      pctx.arc(x, y, r, 0, Math.PI*2);
+      pctx.fill();
+      pctx.stroke();
+
+      // quantity label inside if big enough
+      if (r >= 12){
+        pctx.fillStyle = "rgba(0,0,0,0.75)";
+        pctx.font = "12px ui-sans-serif, system-ui, -apple-system";
+        const txt = String(p.n);
+        const tw = pctx.measureText(txt).width;
+        pctx.fillText(txt, x - tw/2, y + 4);
+      }
+
+      hitBubbles.push({x, y, r: r + 8, p});
+    }
+
+    pctx.restore();
+  }
+
+  function findHit(clientX, clientY){
+    const rect = plot.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    for (let i = hitBubbles.length - 1; i >= 0; i--){
+      const b = hitBubbles[i];
+      const dx = x - b.x, dy = y - b.y;
+      if (dx*dx + dy*dy <= b.r*b.r) return {b, x, y};
+    }
+    return null;
+  }
+
+  function showTip(hit){
+    if (!hit){
+      tip.classList.remove("on");
+      return;
+    }
+    const {b, x, y} = hit;
+    const q = b.p.q;
+    const qName = q > 0.25 ? "Positive-ish" : q < -0.25 ? "Negative-ish" : "Neutral-ish";
+    tip.innerHTML =
+      `<div style="font-weight:750; margin-bottom:4px">${b.p.label}</div>` +
+      `<div>Interactions: <b>${b.p.n}</b></div>` +
+      `<div>Avg quality: <b>${q.toFixed(2)}</b> (${qName})</div>` +
+      `<div style="margin-top:4px; color: rgba(255,255,255,.8)">+${b.p.pos} / 0:${b.p.neu} / −${b.p.neg}</div>`;
+
+    tip.style.left = `${x}px`;
+    tip.style.top  = `${y}px`;
+    tip.classList.add("on");
+  }
+
+  // pointer interactions for iPhone
+  plot.addEventListener("pointerdown", (e) => {
+    pointerDown = true;
+    plot.setPointerCapture(e.pointerId);
+    showTip(findHit(e.clientX, e.clientY));
+  });
+  plot.addEventListener("pointermove", (e) => {
+    if (!pointerDown) return;
+    showTip(findHit(e.clientX, e.clientY));
+  });
+  plot.addEventListener("pointerup", () => {
+    pointerDown = false;
+    // keep tip visible; tap elsewhere to hide
+  });
+  plot.addEventListener("pointercancel", () => { pointerDown = false; });
+  plot.addEventListener("click", (e) => {
+    const hit = findHit(e.clientX, e.clientY);
+    if (!hit) tip.classList.remove("on");
+  });
+
+
+  // Export plot as high-res PNG (respects current window + bucket settings)
+  const btnExportPlot = document.getElementById("btnExportPlot");
+  if (btnExportPlot){
+    btnExportPlot.addEventListener("click", () => exportPlotPNG(3)); // ~3x
+  }
+
+  function exportPlotPNG(scale){
+    // Create an offscreen canvas and render the plot there at higher resolution.
+    const cssRect = plot.getBoundingClientRect();
+    const W = Math.max(320, Math.floor(cssRect.width));
+    const H = Math.max(260, Math.floor(cssRect.height));
+
+    const off = document.createElement("canvas");
+    off.width  = W * scale;
+    off.height = H * scale;
+    const octx = off.getContext("2d");
+    octx.setTransform(scale,0,0,scale,0,0);
+
+    // Temporarily swap contexts by calling a specialized renderer.
+    renderPlotToContext(octx, W, H);
+
+    off.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const wm = windowMode === "all" ? "all" : windowMode;
+      const bm = bucketMode === "weekly" ? "weekly" : "daily";
+      a.download = `valence-plot-${wm}-${bm}.png`;
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }
+
+
+  window.addEventListener("resize", () => { draw(); });
+
+  // ----------------------------
+  // List + KPIs
+  // ----------------------------
+  function renderList(){
+    if (!listEl) return;
+    listEl.innerHTML = "";
+    const rev = [...entries].reverse();
+    for (let revIndex=0; revIndex<rev.length; revIndex++){
+      const e = rev[revIndex];
+      const index = entries.length - 1 - revIndex;
+
+      const badgeClass = e.valence === 1 ? "good" : e.valence === 0 ? "mid" : "bad";
+      const badgeText  = e.valence === 1 ? "Positive" : e.valence === 0 ? "Neutral" : "Negative";
+
+      const item = document.createElement("div");
+      item.className = "item";
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+
+      const top = document.createElement("div");
+      top.className = "top";
+
+      const badge = document.createElement("span");
+      badge.className = `badge ${badgeClass}`;
+      badge.textContent = badgeText;
+
+      const when = document.createElement("span");
+      when.style.color = "rgba(255,255,255,.70)";
+      when.textContent = new Date(e.timestamp).toLocaleString(undefined, {
+        year:"2-digit", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"
+      });
+
+      top.appendChild(badge);
+      if (e.label){
+        const lab = document.createElement("span");
+        lab.className = "badge";
+        lab.textContent = e.label;
+        top.appendChild(lab);
+      }
+      top.appendChild(when);
+
+      meta.appendChild(top);
+      if (e.note){
+        const n = document.createElement("div");
+        n.className = "note";
+        n.textContent = e.note;
+        meta.appendChild(n);
+      }
+
+      const actions = document.createElement("div");
+      const del = document.createElement("button");
+      del.className = "btn ghost";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => removeAt(index));
+      actions.appendChild(del);
+
+      item.appendChild(meta);
+      item.appendChild(actions);
+
+      listEl.appendChild(item);
+    }
+  }
+
+  function renderKPIs(){
+    const total = entries.length;
+    const avg = total ? entries.reduce((s,e)=>s+e.valence,0)/total : 0;
+    const pos = entries.filter(e => e.valence === 1).length;
+    const rate = total ? (pos/total)*100 : 0;
+
+    kTotal.textContent = String(total);
+    kAvg.textContent = avg.toFixed(2);
+    kRate.textContent = `${Math.round(rate)}%`;
+
+    if (entryCountEl) entryCountEl.textContent = String(total);
+  }
+
+  // ----------------------------
+  // CRUD + import/export
+  // ----------------------------
+  function add(valence){
+    /** @type {Entry} */
+    const entry = {
+      timestamp: nowISO(),
+      valence,
+      label: labelIn.value.trim() || undefined,
+      note: noteIn.value.trim() || undefined
+    };
+    entries.push(entry);
+    entries.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+    save(entries);
+
+    labelIn.value = "";
+    noteIn.value = "";
+
+    render();
+  }
+
+  function removeAt(index){
+    entries.splice(index, 1);
+    save(entries);
+    render();
+  }
+
+  function clearAll(){
+    if (!confirm("Clear all entries? This cannot be undone.")) return;
+    entries = [];
+    save(entries);
+    render();
+  }
+
+  function exportJson(){
+    const payload = { version: 2, exportedAt: nowISO(), entries };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `valence-tracker-offline-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importJson(evt){
+    const file = evt.target.files?.[0];
+    if (!file) return;
+
+    try{
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const imported = Array.isArray(data) ? data : data.entries;
+      if (!Array.isArray(imported)) throw new Error("Invalid JSON: expected an array or {entries:[...]}");
+
+      const cleaned = imported
+        .map(e => ({
+          timestamp: typeof e.timestamp === "string" ? e.timestamp : null,
+          valence: e.valence,
+          label: typeof e.label === "string" ? e.label : undefined,
+          note: typeof e.note === "string" ? e.note : undefined
+        }))
+        .filter(e =>
+          e.timestamp &&
+          (e.valence === -1 || e.valence === 0 || e.valence === 1) &&
+          !Number.isNaN(new Date(e.timestamp).getTime())
+        );
+
+      if (!cleaned.length) throw new Error("No valid entries found.");
+
+      const merge = confirm("OK = merge with existing data\nCancel = replace existing data");
+      if (merge) entries = dedupe(entries.concat(cleaned));
+      else entries = cleaned;
+
+      entries.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
+      save(entries);
+      render();
+    } catch(err){
+      alert("Import failed: " + (err?.message || String(err)));
+    } finally {
+      evt.target.value = "";
+    }
+  }
+
+  function dedupe(arr){
+    const seen = new Set();
+    const out = [];
+    for (const e of arr){
+      const key = `${e.timestamp}__${e.valence}__${e.label||""}__${e.note||""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(e);
+    }
+    return out;
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(e =>
+        e && typeof e.timestamp === "string" &&
+        (e.valence === -1 || e.valence === 0 || e.valence === 1) &&
+        !Number.isNaN(new Date(e.timestamp).getTime())
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  function save(arr){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  }
+
+  // ----------------------------
+  // Render
+  // ----------------------------
+  function render(){
+    renderKPIs();
+    renderList();
+    draw();
+  }
+
+  render();
+
+
+  // Entries collapsible hint
+  const entriesDetails = document.getElementById("entriesDetails");
+  const entriesSummaryHint = document.getElementById("entriesSummaryHint");
+  if (entriesDetails && entriesSummaryHint){
+    const syncHint = () => {
+      entriesSummaryHint.textContent = entriesDetails.open ? "Expanded" : "Collapsed";
+    };
+    entriesDetails.addEventListener("toggle", syncHint);
+    syncHint();
+  }
+
+
+  // Optional: prevent iOS rubber-band selection highlight on double-tap
+  document.addEventListener("gesturestart", (e) => e.preventDefault());
+
+})();
+</script>
+
+<script>
+  // PWA service worker registration (requires HTTPS or localhost)
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    });
+  }
+</script>
+
+</body>
+</html>
