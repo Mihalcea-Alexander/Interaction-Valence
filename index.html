@@ -1,4 +1,4 @@
-\
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -21,6 +21,7 @@
       --good:#45f7b5;
       --mid:#b9c2ff;
       --bad:#ff5a8a;
+      --miss:#9aa3b2;
       --shadow: 0 18px 60px rgba(0,0,0,.40);
       --radius: 18px;
       --radius2: 14px;
@@ -120,6 +121,9 @@
     .btn.good{border-color: rgba(69,247,181,.36); background: rgba(69,247,181,.11)}
     .btn.mid{border-color: rgba(185,194,255,.36); background: rgba(185,194,255,.11)}
     .btn.bad{border-color: rgba(255,90,138,.36); background: rgba(255,90,138,.11)}
+    .btn.miss{border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.07); color: rgba(255,255,255,.88)}
+    .btn.miss:hover{background: rgba(255,255,255,.10)}
+
     .btn.ghost{background: transparent}
     .btn.danger{border-color: rgba(255,90,138,.36)}
 
@@ -209,6 +213,8 @@
     .badge.good{border-color: rgba(69,247,181,.35); background: rgba(69,247,181,.10)}
     .badge.mid{border-color: rgba(185,194,255,.35); background: rgba(185,194,255,.10)}
     .badge.bad{border-color: rgba(255,90,138,.35); background: rgba(255,90,138,.10)}
+    .badge.miss{border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.06); color: rgba(255,255,255,.86)}
+
     .note{
       margin-top:6px;
       color: rgba(255,255,255,.78);
@@ -316,6 +322,7 @@
             <button class="btn bad" id="btnNeg" type="button">Negative</button>
             <button class="btn mid" id="btnNeu" type="button">Neutral</button>
             <button class="btn good" id="btnPos" type="button">Positive</button>
+            <button class="btn miss" id="btnMis" type="button">Missed</button>
           </div>
         </div>
       </section>
@@ -356,7 +363,7 @@
           </div>
 
           <div class="hint">
-            <b>How to read this:</b> each bubble = one day/week bucket. Bubble <b>height</b> = average interaction quality (−1 negative … +1 positive).
+            <b>How to read this:</b> each bubble = one day/week bucket. Bubble <b>height</b> = average interaction quality (−1 negative … +1 positive). “Missed” is a separate gray bubble; its height encodes missed ratio (0 to −1) and size scales relative to non-missed.
             Bubble <b>size</b> = number of interactions in that bucket. Bubble <b>color</b> follows quality (pink → blue → mint).
             Tap/drag on bubbles for details.
           </div>
@@ -432,8 +439,8 @@
   el("btnNeg").addEventListener("click", () => add(-1));
   el("btnNeu").addEventListener("click", () => add(0));
   el("btnPos").addEventListener("click", () => add(1));
-
-  el("btnExport").addEventListener("click", exportJson);
+  el("btnMis").addEventListener("click", () => add(2));
+el("btnExport").addEventListener("click", exportJson);
   el("btnClear").addEventListener("click", clearAll);
   fileIn.addEventListener("change", importJson);
 
@@ -485,6 +492,15 @@
   function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
 
   function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function qualityOfValence(v){
+    // Stored valence: -1 negative, 0 neutral, 1 positive, 2 missed
+    // For quantity×quality we treat missed as mildly negative quality.
+    if (v === 2) return -0.5;
+    return v;
+  }
+
+  function colorForMissed(){ return `rgb(154,163,178)`; }
 
   function colorForQuality(q){
     // q in [-1, 1]
@@ -541,30 +557,61 @@
   // ----------------------------
   function aggregateForPlot(){
     const filtered = entries.filter(e => withinWindow(e.timestamp));
-    const map = new Map(); // key -> {startISO, n, sum, pos, neu, neg}
+    const map = new Map();
+
     for (const e of filtered){
       const k = bucketKey(new Date(e.timestamp));
-      if (!map.has(k)) map.set(k, {startISO:k, n:0, sum:0, pos:0, neu:0, neg:0});
+      if (!map.has(k)) map.set(k, {
+        startISO:k,
+        nNon:0, sumNon:0, pos:0, neu:0, neg:0,
+        nMis:0
+      });
       const b = map.get(k);
-      b.n += 1;
-      b.sum += e.valence;
-      if (e.valence === 1) b.pos++;
-      else if (e.valence === 0) b.neu++;
-      else b.neg++;
+      if (e.valence === 2){
+        b.nMis += 1;
+      } else {
+        b.nNon += 1;
+        b.sumNon += e.valence;
+        if (e.valence === 1) b.pos++;
+        else if (e.valence === 0) b.neu++;
+        else b.neg++;
+      }
     }
+
     const buckets = [...map.values()].sort((a,b) => new Date(a.startISO) - new Date(b.startISO));
-    const points = buckets.map(b => ({
+
+    const normal = buckets.map(b => ({
+      kind: "normal",
       t: new Date(b.startISO).getTime(),
       label: bucketLabel(b.startISO),
-      n: b.n,
-      q: b.n ? b.sum / b.n : 0,
-      pos: b.pos, neu: b.neu, neg: b.neg
+      n: b.nNon,
+      q: b.nNon ? (b.sumNon / b.nNon) : 0,
+      pos: b.pos, neu: b.neu, neg: b.neg,
+      mis: b.nMis
     }));
-    return points;
+
+    const missed = buckets
+      .filter(b => b.nMis > 0)
+      .map(b => {
+        const denom = Math.max(1, b.nNon);
+        const ratio = Math.min(1, b.nMis / denom);
+        return {
+          kind: "missed",
+          t: new Date(b.startISO).getTime(),
+          label: bucketLabel(b.startISO),
+          n: b.nMis,
+          non: b.nNon,
+          ratio,
+          y: -ratio
+        };
+      });
+
+    return { normal, missed };
   }
 
   // ----------------------------
   // Canvas plot (bubble: size=quantity, y=quality, x=time)
+  // ---------------------------- (bubble: size=quantity, y=quality, x=time)
   // ----------------------------
   let hitBubbles = []; // for hit testing
   let pointerDown = false;
@@ -624,10 +671,12 @@
     pctx.stroke();
 
     // Data
-    const pts = aggregateForPlot();
+    const series = aggregateForPlot();
+    const pts = series.normal;
+    const missPts = series.missed;
     hitBubbles = [];
 
-    if (!pts.length){
+    if (!pts.length && !missPts.length){
       pctx.fillStyle = "rgba(255,255,255,0.65)";
       pctx.font = "13px ui-sans-serif, system-ui, -apple-system";
       pctx.fillText("No data in this window. Log something below.", x0, y0 + 18);
@@ -642,7 +691,7 @@
     const xForT = (t) => x0 + ( (t - tMin) / tSpan ) * (x1 - x0);
 
     // bubble radius based on quantity (n)
-    const nMax = Math.max(...pts.map(p => p.n));
+    const nMax = Math.max(...pts.map(p => p.n)); // non-missed reference
     const rForN = (n) => {
       // Size grows with interaction count (mostly absolute so it’s obvious), softly capped.
       const abs = 8 + 10 * Math.sqrt(Math.max(0, n));   // n=1 -> 18px, n=4 -> 28px, n=9 -> 38px (capped)
@@ -720,7 +769,47 @@
         pctx.fillText(txt, x - tw/2, y + 4);
       }
 
+
       hitBubbles.push({x, y, r: r + 8, p});
+    }
+
+    // Missed bubbles (separate, gray). Height encodes missed ratio (0 to -1),
+    // size encodes missed ratio relative to non-missed in the same bucket.
+    for (const mp of missPts){
+      const x = xForT(mp.t);
+      const y = yForQ(mp.y);
+
+      const rBase = lerp(8, 24, mp.ratio);
+      const rAbs  = 6 + 4 * Math.sqrt(mp.n);
+      const r = Math.min(26, Math.round(0.7 * rBase + 0.3 * rAbs));
+
+      const c = colorForMissed();
+
+      // glow
+      pctx.beginPath();
+      pctx.fillStyle = alpha(c, 0.14);
+      pctx.arc(x, y, r + 7, 0, Math.PI*2);
+      pctx.fill();
+
+      // body
+      pctx.beginPath();
+      pctx.fillStyle = alpha(c, 0.70);
+      pctx.strokeStyle = "rgba(255,255,255,0.14)";
+      pctx.lineWidth = 1;
+      pctx.arc(x, y, r, 0, Math.PI*2);
+      pctx.fill();
+      pctx.stroke();
+
+      // label
+      if (r >= 12){
+        pctx.fillStyle = "rgba(0,0,0,0.70)";
+        pctx.font = "12px ui-sans-serif, system-ui, -apple-system";
+        const txt = String(mp.n);
+        const tw = pctx.measureText(txt).width;
+        pctx.fillText(txt, x - tw/2, y + 4);
+      }
+
+      hitBubbles.push({x, y, r: r + 8, p: mp});
     }
 
     pctx.restore();
@@ -744,13 +833,23 @@
       return;
     }
     const {b, x, y} = hit;
-    const q = b.p.q;
-    const qName = q > 0.25 ? "Positive-ish" : q < -0.25 ? "Negative-ish" : "Neutral-ish";
-    tip.innerHTML =
-      `<div style="font-weight:750; margin-bottom:4px">${b.p.label}</div>` +
-      `<div>Interactions: <b>${b.p.n}</b></div>` +
-      `<div>Avg quality: <b>${q.toFixed(2)}</b> (${qName})</div>` +
-      `<div style="margin-top:4px; color: rgba(255,255,255,.8)">+${b.p.pos} / 0:${b.p.neu} / −${b.p.neg}</div>`;
+
+    if (b.p.kind === "missed"){
+      const ratioPct = Math.round((b.p.ratio || 0) * 100);
+      tip.innerHTML =
+        `<div style="font-weight:750; margin-bottom:4px">${b.p.label}</div>` +
+        `<div>Missed: <b>${b.p.n}</b></div>` +
+        `<div>Non-missed: <b>${b.p.non}</b></div>` +
+        `<div>Missed ratio: <b>${ratioPct}%</b></div>`;
+    } else {
+      const q = b.p.q;
+      const qName = q > 0.25 ? "Positive-ish" : q < -0.25 ? "Negative-ish" : "Neutral-ish";
+      tip.innerHTML =
+        `<div style="font-weight:750; margin-bottom:4px">${b.p.label}</div>` +
+        `<div>Non-missed interactions: <b>${b.p.n}</b></div>` +
+        `<div>Avg quality: <b>${q.toFixed(2)}</b> (${qName})</div>` +
+        `<div style="margin-top:4px; color: rgba(255,255,255,.8)">+${b.p.pos} / 0:${b.p.neu} / −${b.p.neg} / missed:${b.p.mis||0}</div>`;
+    }
 
     tip.style.left = `${x}px`;
     tip.style.top  = `${y}px`;
@@ -828,8 +927,8 @@
       const e = rev[revIndex];
       const index = entries.length - 1 - revIndex;
 
-      const badgeClass = e.valence === 1 ? "good" : e.valence === 0 ? "mid" : "bad";
-      const badgeText  = e.valence === 1 ? "Positive" : e.valence === 0 ? "Neutral" : "Negative";
+      const badgeClass = e.valence === 1 ? "good" : e.valence === 0 ? "mid" : e.valence === 2 ? "miss" : "bad";
+      const badgeText  = e.valence === 1 ? "Positive" : e.valence === 0 ? "Neutral" : e.valence === 2 ? "Missed" : "Negative";
 
       const item = document.createElement("div");
       item.className = "item";
@@ -883,9 +982,10 @@
 
   function renderKPIs(){
     const total = entries.length;
-    const avg = total ? entries.reduce((s,e)=>s+e.valence,0)/total : 0;
+    const avg = total ? entries.reduce((s,e)=>s+qualityOfValence(e.valence),0)/total : 0;
     const pos = entries.filter(e => e.valence === 1).length;
-    const rate = total ? (pos/total)*100 : 0;
+    const denom = entries.filter(e => e.valence !== 2).length;
+    const rate = denom ? (pos/denom)*100 : 0;
 
     kTotal.textContent = String(total);
     kAvg.textContent = avg.toFixed(2);
@@ -960,7 +1060,7 @@
         }))
         .filter(e =>
           e.timestamp &&
-          (e.valence === -1 || e.valence === 0 || e.valence === 1) &&
+          (e.valence === -1 || e.valence === 0 || e.valence === 1 || e.valence === 2) &&
           !Number.isNaN(new Date(e.timestamp).getTime())
         );
 
@@ -1000,7 +1100,7 @@
       if (!Array.isArray(parsed)) return [];
       return parsed.filter(e =>
         e && typeof e.timestamp === "string" &&
-        (e.valence === -1 || e.valence === 0 || e.valence === 1) &&
+        (e.valence === -1 || e.valence === 0 || e.valence === 1 || e.valence === 2) &&
         !Number.isNaN(new Date(e.timestamp).getTime())
       );
     } catch {
