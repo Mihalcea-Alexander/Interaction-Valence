@@ -1,11 +1,9 @@
 /* Valence PWA Service Worker (cache-first for app shell) */
-const CACHE_NAME = "valence-pwa-v1";
+const CACHE_NAME = "valence-pwa-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.webmanifest"
 ];
 
 self.addEventListener("install", (event) => {
